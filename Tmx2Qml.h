@@ -25,7 +25,13 @@
 #ifndef TMX2QML_H
 #define TMX2QML_H
 
-#include <QObject>
+#include <QDateTime>
+#include <QTextStream>
+
+namespace Tiled {
+    class Map;
+    class Tile;
+}
 
 class Tmx2Qml : public QObject
 {
@@ -41,6 +47,20 @@ private slots:
 
     void onLaunched();
 
+private:
+
+    void exportMap(QString mapPrefix, Tiled::Map *map);
+    void exportQRC(QString mapPrefix, QList<QString> assets);
+
+    void printUsage();
+    void printHeader(QTextStream &out);
+    QList<const Tiled::Tile*> generateLayerModel(QString mapPrefix, Tiled::Map *map);
+    void generateGridView(QString mapPrefix, Tiled::Map *map);
+    void generateMap(QString mapPrefix, Tiled::Map *map);
+    void generateQRC(QString mapPrefix, Tiled::Map *map, QList<const Tiled::Tile*> uniqueTiles);
+
+
+    QDateTime m_utc;
 };
 
 #endif // TMX2QML_H

@@ -22,12 +22,12 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <QCoreApplication>
+#include <QGuiApplication>
 #include "Tmx2Qml.h"
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
     app.setApplicationName("tmx2qml");
     app.setApplicationVersion("0.1");
     app.setOrganizationName("Mathieu-André Chiasson");

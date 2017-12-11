@@ -79,6 +79,7 @@ void Tmx2Qml::onLaunched()
 void Tmx2Qml::exportMap(QString mapPrefix, Tiled::Map *map)
 {
     QSet<const Tiled::Tile*> uniqueTiles;
+    QMap<Tiled::Tileset*, QVector< QVector<Tiled::Frame> > > animationMap;
 
     QFile file(QString("%1Map.qml").arg(mapPrefix));
 
@@ -128,34 +129,43 @@ void Tmx2Qml::exportMap(QString mapPrefix, Tiled::Map *map)
             for (int x = 0; x < layer->width(); ++x)
             {
                 const Tiled::Cell &cell = layer->cellAt(x, y);
-                const Tiled::Tileset *tileset = cell.tileset();
+                Tiled::Tileset *tileset = cell.tileset();
                 if (tileset)
                 {
+                    QVector< QVector<Tiled::Frame> > &animations = animationMap[tileset];
+
                     const Tiled::Tile *tile = tileset->tileAt(cell.tileId());
                     if (tile)
                     {
                         if (tile->isAnimated())
                         {
                             const QVector<Tiled::Frame> &frames = tile->frames();
+                            bool newFrames = true;
+                            for(int i = 0; i < animations.size(); ++i)
+                            {
+                                if (frames == animations[i])
+                                {
+                                    newFrames = false;
+                                    break;
+                                }
+                            }
+
+                            if (newFrames)
+                            {
+                                animations.push_back(frames);
+                            }
+
+                            // generate a unique animation ID
+                            QString id = tileset->name().toLower();
+                            id.replace(" ", "_");
                             for(int i = 0; i < frames.size(); ++i)
                             {
                                 const Tiled::Frame &frame = frames[i];
                                 uniqueTiles << tileset->tileAt(frame.tileId);
-                                QString id = QString("%1_%2").arg(tileset->name().toLower()).arg(frame.tileId);
-                                id.replace(" ", "_");
-                                out << "\t\tImage{id:img_" << x << "_" << y << "_" << i << ";x:" << x*map->tileWidth() << ";y:" << y*map->tileHeight() << ";source:\"" << id << ".png\";visible:false}" << endl;
+                                id += QString("_%1").arg(frame.tileId);
                             }
-                            out << "\t\tSequentialAnimation{" << endl;
-                            out << "\t\t\trunning:true" << endl;
-                            out << "\t\t\tloops: Animation.Infinite" << endl;
-                            for(int i = 0; i < frames.size(); ++i)
-                            {
-                                const Tiled::Frame &frame = frames[i];
-                                out << "\t\t\tScriptAction{script:img_" << x << "_" << y << "_" << i << ".visible = true}" << endl;
-                                out << "\t\t\tPauseAnimation{duration:" << frame.duration << "}" << endl;
-                                out << "\t\t\tScriptAction{script:img_" << x << "_" << y << "_" << i << ".visible = false}" << endl;
-                            }
-                            out << "\t\t}" << endl;
+
+                            out << "\t\tImage{x:" << x*map->tileWidth() << ";y:" << y*map->tileHeight() << ";source:" << id << "}" << endl;
                         }
                         else
                         {
@@ -169,6 +179,41 @@ void Tmx2Qml::exportMap(QString mapPrefix, Tiled::Map *map)
             }
         }
         out << "\t}" << endl;
+    }
+
+    QMap<Tiled::Tileset*, QVector< QVector<Tiled::Frame> > >::const_iterator it = animationMap.begin(), end = animationMap.end();
+
+    while (it != end)
+    {
+        Tiled::Tileset* tileset = it.key();
+        const QVector< QVector<Tiled::Frame> > &animations = it.value();
+
+        foreach(const QVector<Tiled::Frame> &animation, animations)
+        {
+
+            QString id_base = tileset->name().toLower();
+            id_base.replace(" ", "_");
+
+            QString id = id_base;
+            foreach(const Tiled::Frame &frame, animation)
+            {
+                id += QString("_%1").arg(frame.tileId);
+            }
+
+            out << "\tproperty string " << id << ": \"\"" << endl;
+            out << "\tSequentialAnimation{" << endl;
+            out << "\t\trunning:true" << endl;
+            out << "\t\tloops: Animation.Infinite" << endl;
+            foreach(const Tiled::Frame &frame, animation)
+            {
+                out << "\t\tScriptAction{script:" <<id << "=\"" << id_base << "_" << frame.tileId << ".png\"}" << endl;
+                out << "\t\tPauseAnimation{duration:" << frame.duration << "}" << endl;
+            }
+            out << "\t}" << endl;
+
+        }
+
+        ++it;
     }
 
     out << "}" << endl;;
